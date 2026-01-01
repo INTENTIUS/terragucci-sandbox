@@ -1,0 +1,12 @@
+binary: tofu
+waves:
+  canary: ["envs/dev/*"]
+drift: "0 6 * * *"
+# The 0.3.0 pipeline's container jobs run git as root in a checkout the runner's
+# user owns, and git refuses such a checkout until it is marked safe. Without
+# this, a comment re-plan stops, a plan covers every root and an apply cannot
+# tell what moved.
+env:
+  GIT_CONFIG_COUNT: "1"
+  GIT_CONFIG_KEY_0: safe.directory
+  GIT_CONFIG_VALUE_0: "*"
