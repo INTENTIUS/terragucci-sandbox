@@ -23,7 +23,7 @@ data "terraform_remote_state" "platform" {
 }
 
 module "service" {
-  source = "git::https://github.com/INTENTIUS/terragucci-sandbox.git//modules/service?ref=modules/service/v0.1.0"
+  source = "git::https://github.com/INTENTIUS/terragucci-sandbox.git//modules/service?ref=modules/service/v0.2.0"
 
   env         = "dev"
   name        = "orders"
