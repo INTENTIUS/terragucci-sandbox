@@ -860,6 +860,30 @@ jobs:
           set -u
           export GITHUB_TOKEN="$TG_TOKEN"
           terragucci respond tips --mode apply --binary tofu || true
+  publish:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/intentius/terragucci-tofu:0.4.1-tofu1.13.1@sha256:f7b2c7b8148bbfa6e1410a8926bb1fdeeaca16ed4f3e5959a9884cb823d4a704
+    needs: apply-wave-4
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    permissions:
+      contents: write
+    concurrency:
+      group: terragucci-publish-${{ github.repository }}
+      cancel-in-progress: false
+    env:
+      TERRAGUCCI_REGISTRY_USER: '${{ secrets.TERRAGUCCI_REGISTRY_USER }}'
+      TERRAGUCCI_REGISTRY_PASSWORD: '${{ secrets.TERRAGUCCI_REGISTRY_PASSWORD }}'
+      TERRAGUCCI_REGISTRY_INSECURE: '${{ secrets.TERRAGUCCI_REGISTRY_INSECURE }}'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Publish the modules that changed
+        shell: bash
+        run: |
+          set -eu
+          terragucci publish
   drift:
     runs-on: ubuntu-latest
     container:
