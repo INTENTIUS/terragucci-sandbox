@@ -434,6 +434,7 @@ jobs:
       pull-requests: write
     env:
       TG_TOKEN: '${{ github.token }}'
+      TG_MERGE_TOKEN: '${{ secrets.SANDBOX_MERGE_TOKEN }}'
       TG_PR: '${{ github.event.issue.number }}'
       TG_SHA: '${{ needs.apply-comment.outputs.sha }}'
       TG_WAVES: '${{ needs.apply-comment.outputs.waves }}'
