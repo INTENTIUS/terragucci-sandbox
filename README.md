@@ -10,3 +10,5 @@ A plan-only copy of the [terragucci example](https://github.com/INTENTIUS/terrag
 | Approvals | `.chant/allowed_signers` lists a key made for one sandbox run |
 
 The script resets this repo to its first commit, so its pull requests and history do not last.
+
+main moved under an open pull request.
