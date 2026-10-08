@@ -28,6 +28,9 @@ module "service" {
   env         = "dev"
   name        = "orders"
   logs_bucket = data.terraform_remote_state.platform.outputs.logs_bucket
+
+  # Orders in dev keeps unclaimed jobs for seven days instead of four.
+  job_retention_seconds = 604800
 }
 
 output "jobs_queue" {
