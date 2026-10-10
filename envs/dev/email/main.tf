@@ -28,6 +28,8 @@ module "service" {
   env         = "dev"
   name        = "email"
   logs_bucket = data.terraform_remote_state.platform.outputs.logs_bucket
+
+  job_retention_seconds = 600
 }
 
 output "jobs_queue" {
