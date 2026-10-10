@@ -2,3 +2,8 @@ binary: tofu
 waves:
   canary: ["envs/dev/*"]
 drift: "0 6 * * *"
+# Set by stack/sandbox-github.sh prove pull-request; reset takes it away.
+apply:
+  when: pull-request
+  merge: manual
+  requires: [approved, mergeable, checks]
