@@ -122,3 +122,7 @@ output "jobs_queue" {
 output "records_table" {
   value = one(terraform_data.records[*].input.name)
 }
+
+output "service_name" {
+  value = var.name
+}
