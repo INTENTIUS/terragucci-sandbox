@@ -28,6 +28,9 @@ module "service" {
   env         = "prod"
   name        = "search"
   logs_bucket = data.terraform_remote_state.platform.outputs.logs_bucket
+
+  # Search records are looked up by product, so key the table by sku.
+  records_key = "sku"
 }
 
 output "jobs_queue" {
