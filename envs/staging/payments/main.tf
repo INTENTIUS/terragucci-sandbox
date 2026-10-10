@@ -28,6 +28,9 @@ module "service" {
   env         = "staging"
   name        = "payments"
   logs_bucket = data.terraform_remote_state.platform.outputs.logs_bucket
+
+  # Payments in staging no longer keeps records.
+  records_table = false
 }
 
 output "jobs_queue" {
