@@ -383,11 +383,16 @@ jobs:
       checks: read
     env:
       TG_TOKEN: '${{ github.token }}'
+    outputs:
+      merge: '${{ steps.apply.outputs.merge }}'
+      sha: '${{ steps.apply.outputs.sha }}'
+      waves: '${{ steps.apply.outputs.waves }}'
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Apply a pull request on request, from its head before merge or its merge commit after
+      - id: apply
+        name: Apply a pull request on request, from its head before merge or its merge commit after
         shell: bash
         run: |
           set +e -uo pipefail
@@ -498,7 +503,7 @@ jobs:
           fi
           if [ "$TG_OPEN" = 1 ]; then
             if [ "$last" = 4 ]; then
-              tg reply "applied wave $done_waves of pull request $TG_PR at ${TG_SHA:0:8}. Merge it when you are ready; its root locks hold until it merges or closes. $run_url"
+              { echo "merge=1"; echo "sha=$TG_SHA"; echo "waves=$done_waves"; } >> "$GITHUB_OUTPUT"
             else
               tg reply "applied wave $done_waves of pull request $TG_PR at ${TG_SHA:0:8}. $run_url"
             fi
@@ -512,6 +517,90 @@ jobs:
           name: terragucci-report-apply-comment
           path: terragucci-report/
           if-no-files-found: ignore
+  pr-merge:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/intentius/terragucci-tofu:0.4.5-tofu1.13.1@sha256:acac5f170b899d52bb593b2ac064ad814d0eba2bd6256069df177273f6becef4
+    needs: apply-comment
+    if: needs.apply-comment.outputs.merge == '1'
+    permissions:
+      contents: write
+      pull-requests: write
+    env:
+      TG_TOKEN: '${{ github.token }}'
+      TG_PR: '${{ github.event.issue.number }}'
+      TG_SHA: '${{ needs.apply-comment.outputs.sha }}'
+      TG_WAVES: '${{ needs.apply-comment.outputs.waves }}'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Merge the pull request whose every wave applied
+        shell: bash
+        run: |
+          set +e -uo pipefail
+          export TG_FORGE=github
+          tg() { node --input-type=module -e 'import { writeFileSync, readFileSync } from "node:fs";
+          const [cmd, ...a] = process.argv.slice(1);
+          const e = process.env, gl = e.TG_FORGE === "gitlab", tok = e.TG_TOKEN;
+          const MARK = "<!-- terragucci:plan";
+          try {
+            if (cmd === "oidc") {
+              const r = await fetch(e.ACTIONS_ID_TOKEN_REQUEST_URL + "&audience=" + encodeURIComponent(a[1]), { headers: { authorization: "bearer " + e.ACTIONS_ID_TOKEN_REQUEST_TOKEN } });
+              if (!r.ok) throw new Error("the OIDC token request answered " + r.status + "; the job needs permission to request an OIDC token");
+              writeFileSync(a[0], (await r.json()).value, { mode: 0o600 });
+            } else if (!tok) {
+              console.log("terragucci: no forge token, so no " + cmd);
+            } else {
+              const api = gl ? e.CI_API_V4_URL : e.GITHUB_API_URL || e.GITHUB_SERVER_URL + "/api/v1";
+              const repo = gl ? "projects/" + e.CI_PROJECT_ID : "repos/" + e.GITHUB_REPOSITORY;
+              const call = async (m, p, b) => {
+                const r = await fetch(api + "/" + p, { method: m, headers: { "content-type": "application/json", ...(gl ? { "private-token": tok } : { authorization: "token " + tok }) }, body: b ? JSON.stringify(b) : undefined });
+                if (!r.ok) throw new Error(m + " " + p + " answered " + r.status);
+                return r.status === 204 ? null : r.json();
+              };
+              const notes = (n) => gl ? repo + "/merge_requests/" + n + "/notes" : repo + "/issues/" + n + "/comments";
+              const find = async (n) => (await call("GET", notes(n) + "?per_page=100")).find((c) => c.body.startsWith(MARK));
+              const edit = (n, id, body) => gl ? call("PUT", notes(n) + "/" + id, { body }) : call("PATCH", repo + "/issues/comments/" + id, { body });
+              if (cmd === "status") {
+                const [context, state, description] = a;
+                const url = gl ? e.CI_PIPELINE_URL : e.GITHUB_SERVER_URL + "/" + e.GITHUB_REPOSITORY + "/actions/runs/" + e.GITHUB_RUN_ID;
+                const sha = e.TG_SHA;
+                if (gl) await call("POST", repo + "/statuses/" + sha, { name: context, state: { pending: "running", success: "success", failure: "failed" }[state], description, target_url: url });
+                else await call("POST", repo + "/statuses/" + sha, { context, state, description, target_url: url });
+              } else if (cmd === "note") {
+                const body = readFileSync(a[0], "utf-8"), old = await find(e.TG_PR);
+                if (old) await edit(e.TG_PR, old.id, body); else await call("POST", notes(e.TG_PR), { body });
+              } else if (cmd === "reply") {
+                await call("POST", notes(e.TG_PR), { body: "terragucci: " + a[0] });
+              } else if (cmd === "alive") {
+                const run = await call("GET", repo + "/actions/runs/" + a[0]);
+                console.log(["success", "failure", "cancelled", "skipped", "completed"].includes(run.status) ? "dead" : "alive");
+              } else if (cmd === "stale") {
+                const moved = a[0].split(",");
+                const open = gl ? await call("GET", repo + "/merge_requests?state=opened&target_branch=" + a[1] + "&per_page=100") : await call("GET", repo + "/pulls?state=open&base=" + a[1] + "&per_page=100");
+                for (const pr of open) {
+                  const n = gl ? pr.iid : pr.number, note = await find(n);
+                  if (!note || note.body.includes("<!-- terragucci:stale -->")) continue;
+                  const hit = (note.body.match(/roots=(\S*) -->/)?.[1] ?? "").split(",").filter((r) => moved.includes(r));
+                  if (!hit.length) continue;
+                  const lines = note.body.split("\n");
+                  lines.splice(1, 0, "> This plan is stale: " + a[1] + " moved under " + hit.join(", ") + ". Push to this pull request to plan again. <!-- terragucci:stale -->");
+                  await edit(n, note.id, lines.join("\n"));
+                }
+              }
+            }
+          } catch (err) {
+            console.log("terragucci: " + cmd + " failed: " + err.message);
+            if (cmd === "oidc") process.exit(1);
+          }' -- "$@"; }
+          run_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          case "$TG_SHA" in ""|*[!0-9a-f]*) echo "terragucci: the apply job handed on no commit sha, so nothing is merged" >&2; exit 1 ;; esac
+          waves="$(printf '%s' "${TG_WAVES:-}" | tr -cd '0-9, ' | tr -s ' ' | sed 's/ *$//')"
+          if merged="$(terragucci pr-merge --pr "$TG_PR" --sha "$TG_SHA" 2>&1)"; then
+            tg reply "applied wave $waves of pull request $TG_PR at ${TG_SHA:0:8}, and ${merged#terragucci pr-merge: }. $run_url"
+          else
+            tg reply "applied wave $waves of pull request $TG_PR at ${TG_SHA:0:8}, and it was not merged: ${merged#terragucci pr-merge: not merged: }. Merge it by hand. $run_url"
+            exit 1
+          fi
   confirm:
     runs-on: ubuntu-latest
     container:
