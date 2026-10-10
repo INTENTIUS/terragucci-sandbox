@@ -58,7 +58,7 @@ resource "terraform_data" "dead_letter" {
 
   input = {
     name                       = "${local.prefix}-dead-letter"
-    visibility_timeout_seconds = 30
+    visibility_timeout_seconds = 60
     message_retention_seconds  = 1209600
   }
 
@@ -68,7 +68,7 @@ resource "terraform_data" "dead_letter" {
 resource "terraform_data" "jobs" {
   input = {
     name                       = "${local.prefix}-jobs"
-    visibility_timeout_seconds = 30
+    visibility_timeout_seconds = 60
     message_retention_seconds  = var.job_retention_seconds
 
     redrive_policy = var.dead_letter_queue ? jsonencode({
