@@ -2,3 +2,18 @@ binary: tofu
 waves:
   canary: ["envs/dev/*"]
 drift: "0 6 * * *"
+# Set by stack/sandbox-github.sh prove; reset takes it away.
+locks: plan
+policy:
+  engine: conftest
+  path: policy
+  override: [sandbox-signer]
+oidc:
+  plan_role: arn:aws:iam::000000000000:role/terragucci-sandbox-plan
+  apply_role: arn:aws:iam::000000000000:role/terragucci-sandbox-apply
+agent:
+  via: forge
+  token_env: SANDBOX_AGENT_TOKEN
+  comment:
+    command: sh .agent/stand-in.sh
+    timeout: 10
