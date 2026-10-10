@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "locks": {
+    "envs/dev/orders": {
+      "pr": 191,
+      "by": "lex00",
+      "at": "2026-10-10T16:43:32.896Z",
+      "head": "ba22b1d2dc814c2c33e2af0a3eeb52c0c98a4d94",
+      "stage": "plan"
+    }
+  }
+}
