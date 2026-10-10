@@ -1,4 +1,4 @@
 locals {
-    team   = "orders"
+  team  = "orders"
   owner = "shop"
 }
