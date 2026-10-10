@@ -33,3 +33,5 @@ module "service" {
 output "jobs_queue" {
   value = module.service.jobs_queue
 }
+
+# The orders team owns this root.
