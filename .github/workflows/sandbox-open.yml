@@ -1,0 +1,21 @@
+# stack/sandbox-github.sh prove pull-request opens its pull requests through
+# this workflow, so their author is github-actions[bot] and the person running
+# prove may approve them. reset takes it away.
+name: sandbox-open
+on:
+  workflow_dispatch:
+    inputs:
+      head: { required: true }
+      title: { required: true }
+permissions:
+  contents: read
+  pull-requests: write
+jobs:
+  open:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh pr create -R "$GITHUB_REPOSITORY" --head "$HEAD" --base main --title "$TITLE" --body "Opened by the sandbox-open workflow, so the person running prove may approve it."
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD: ${{ inputs.head }}
+          TITLE: ${{ inputs.title }}
