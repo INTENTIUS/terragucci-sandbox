@@ -33,3 +33,7 @@ module "service" {
 output "jobs_queue" {
   value = module.service.jobs_queue
 }
+
+# The orders team owns this root.
+
+# The orders team is on call for this root.
