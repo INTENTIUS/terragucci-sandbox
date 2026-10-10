@@ -126,3 +126,7 @@ output "records_table" {
 output "service_name" {
   value = var.name
 }
+
+output "service_env" {
+  value = var.name
+}
