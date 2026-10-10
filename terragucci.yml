@@ -6,3 +6,4 @@ drift: "0 6 * * *"
 apply:
   when: pull-request
   merge: auto
+  merge_token_env: SANDBOX_MERGE_TOKEN
